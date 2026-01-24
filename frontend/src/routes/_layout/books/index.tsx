@@ -1,0 +1,89 @@
+import { useSuspenseQuery } from "@tanstack/react-query"
+import { createFileRoute } from "@tanstack/react-router"
+import { Suspense, useState } from "react"
+import { Link } from "@tanstack/react-router"
+
+import { BooksService } from "@/client"
+import { columns } from "@/components/Books/columns"
+import { DataTable } from "@/components/Common/DataTable"
+import PendingBooks from "@/components/Pending/PendingBooks"
+import useAuth from "@/hooks/useAuth"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Search } from "lucide-react"
+
+function getBooksQueryOptions(query: string) {
+  return {
+    queryFn: () => BooksService.searchBooks({ query: query || null, skip: 0, limit: 100 }),
+    queryKey: ["books", query],
+  }
+}
+
+export const Route = createFileRoute("/_layout/books/")({
+  component: Books,
+  head: () => ({
+    meta: [
+      {
+        title: "Books - FastAPI Cloud",
+      },
+    ],
+  }),
+})
+
+function BooksTableContent({ query }: { query: string }) {
+  const { data: books } = useSuspenseQuery(getBooksQueryOptions(query))
+
+  return <DataTable columns={columns} data={books.data} />
+}
+
+function BooksTable({ query }: { query: string }) {
+  return (
+    <Suspense fallback={<PendingBooks />}>
+      <BooksTableContent query={query} />
+    </Suspense>
+  )
+}
+
+function Books() {
+  const { user } = useAuth()
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeQuery, setActiveQuery] = useState("")
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    setActiveQuery(searchQuery)
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Books</h1>
+          <p className="text-muted-foreground">
+            Search and manage book catalog
+          </p>
+        </div>
+        {user?.is_superuser && (
+          <Link to="/books/add">
+            <Button>Add Book</Button>
+          </Link>
+        )}
+      </div>
+
+      <form onSubmit={handleSearch} className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by title, ISBN, or author name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Button type="submit">Search</Button>
+      </form>
+
+      <BooksTable query={activeQuery} />
+    </div>
+  )
+}

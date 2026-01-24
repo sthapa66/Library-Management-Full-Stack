@@ -1,0 +1,155 @@
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlmodel import col, or_, select
+
+from app.api.deps import (
+    CurrentUser,
+    SessionDep,
+    get_current_active_superuser,
+)
+from app.core.config import settings
+from app.core.security import get_password_hash, verify_password
+from app.models import (
+    Book,
+    Author,
+    BookAuthor,
+    BookPublic,
+    BooksPublic,
+)
+from app.utils import generate_new_account_email, send_email
+
+
+def get_books_search(
+    session: SessionDep,
+    query: str | None = None,
+    skip: int = 0,
+    limit: int = 100
+) -> tuple[list[Book], int]:
+    """Search books by title, ISBN, or author name"""
+    statement = select(Book)
+
+    if query:
+        # Join with BookAuthor and Author to search by author name
+        statement = (
+            statement
+            .join(BookAuthor, Book.isbn == BookAuthor.isbn, isouter=True)
+            .join(Author, BookAuthor.author_id == Author.author_id, isouter=True)
+            .where(
+                or_(
+                    col(Book.title).ilike(f"%{query}%"),
+                    col(Book.isbn).ilike(f"%{query}%"),
+                    col(Author.name).ilike(f"%{query}%")
+                )
+            )
+            .distinct()
+        )
+
+    # Get total count
+    count_statement = statement
+    count = len(session.exec(count_statement).all())
+
+    # Apply pagination
+    statement = statement.offset(skip).limit(limit)
+    books = session.exec(statement).all()
+
+    return books, count
+
+
+def create_book_with_author(
+    session: SessionDep,
+    isbn: str,
+    title: str,
+    author_name: str
+) -> Book:
+    """Create a new book with an author (creates author if doesn't exist)"""
+    # Check if book already exists
+    existing_book = session.get(Book, isbn)
+    if existing_book:
+        raise HTTPException(status_code=400, detail="Book with this ISBN already exists")
+
+    # Create or get author
+    author_statement = select(Author).where(Author.name == author_name)
+    author = session.exec(author_statement).first()
+
+    if not author:
+        author = Author(name=author_name)
+        session.add(author)
+        session.commit()
+        session.refresh(author)
+
+    # Create book
+    book = Book(isbn=isbn, title=title)
+    session.add(book)
+    session.commit()
+    session.refresh(book)
+
+    # Create book-author relationship
+    book_author = BookAuthor(isbn=isbn, author_id=author.author_id)
+    session.add(book_author)
+    session.commit()
+
+    return book
+
+
+def delete_book_by_isbn(session: SessionDep, isbn: str) -> Book:
+    """Delete a book by ISBN"""
+    book = session.get(Book, isbn)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # SQLModel will handle cascade delete for book_authors
+    session.delete(book)
+    session.commit()
+
+    return book
+
+
+# tags are labels that appear in the auto‑generated OpenAPI/Swagger UI.
+router = APIRouter(prefix="/books", tags=["books"])
+
+
+@router.get("/search", response_model=BooksPublic)
+def search_books(
+    session: SessionDep,
+    query: str | None = Query(default=None, description="Search by title, ISBN, or author name"),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, le=100)
+):
+    """
+    Search for books by title, ISBN, or author name.
+    Returns paginated results.
+    """
+    books, count = get_books_search(session, query=query, skip=skip, limit=limit)
+    return BooksPublic(data=books, count=count)
+
+
+@router.post("/", dependencies=[Depends(get_current_active_superuser)], response_model=BookPublic, status_code=201)
+def create_book(
+    isbn: str,
+    title: str,
+    author_name: str,
+    session: SessionDep,
+):
+    """
+    Create a new book with an author.
+    If the author doesn't exist, it will be created automatically.
+    """
+    book = create_book_with_author(
+        session=session,
+        isbn=isbn,
+        title=title,
+        author_name=author_name
+    )
+    return book
+
+
+@router.delete("/{isbn}", dependencies=[Depends(get_current_active_superuser)], response_model=BookPublic)
+def delete_book(
+    isbn: str,
+    session: SessionDep,
+):
+    """
+    Delete a book by ISBN.
+    This will also delete associated book-author relationships.
+    """
+    book = delete_book_by_isbn(session, isbn)
+    return book

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="500"
+     height="500"
+     viewBox="0 0 500 500">
+
+  <defs>
+    <!-- Mask: white = visible, black = transparent -->
+    <mask id="icon-cutout">
+      <!-- Show entire circle -->
+      <rect width="500" height="500" fill="black"/>
+      <circle cx="250" cy="250" r="240" fill="white"/>
+
+      <!-- Cut out icon -->
+      <g transform="translate(50 50) scale(16.67)"
+         fill="none"
+         stroke="black"
+         stroke-width="2"
+         stroke-linecap="round"
+         stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <path d="M7 7v10"/>
+        <path d="M11 7v10"/>
+        <path d="M15 7l2 10"/>
+      </g>
+    </mask>
+  </defs>
+
+  <!-- White circle with transparent icon cutout -->
+  <rect width="500" height="500" fill="white" mask="url(#icon-cutout)"/>
+</svg>

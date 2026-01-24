@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="341.26297mm" height="63.977139mm" viewBox="0 0 341.26297 63.977134">
+  <style>
+    .logo-text {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 41px;
+      font-weight: 600;
+      fill: #FFFFFF;
+      letter-spacing: 1px;
+    }
+  </style>
+
+  <text
+    x="50%"
+    y="50%"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    class="logo-text"
+  >
+    Example Library
+  </text>
+</svg>
