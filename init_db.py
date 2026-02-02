@@ -39,10 +39,15 @@ def load_table(
             df[col] = transform_func(df[col])
 
     if drop_columns:
+        print(f"Dropping columns: {drop_columns}")
         df = df.drop(columns=drop_columns)
 
     if table_name == "BOOK_AUTHORS":
+        # df["author_id"] = df["author_id"].astype(int).add(1).astype(str)
+        df["author_id"] = df["author_id"].add(1)
         df = df.drop_duplicates(subset=["author_id", "isbn"])
+
+    print(df.head(5))
 
     df.to_sql(table_name.lower(), engine, if_exists="append", index=False)
 

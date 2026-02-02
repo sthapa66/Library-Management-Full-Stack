@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Search } from "lucide-react"
 import { ColumnDef } from "@tanstack/react-table"
+import DeleteBook from "@/components/Books/DeleteBook"
 
 // Updated columns for the new data structure
 const searchColumns: ColumnDef<BookSearchResult>[] = [
@@ -41,6 +42,18 @@ const searchColumns: ColumnDef<BookSearchResult>[] = [
         {row.original.available === "IN" ? "Available" : "Checked Out"}
       </span>
     ),
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => {
+      const book = row.original
+
+      return (
+        <div className="flex justify-end">
+          <DeleteBook book={book} />
+        </div>
+      )
+    },
   },
 ]
 
