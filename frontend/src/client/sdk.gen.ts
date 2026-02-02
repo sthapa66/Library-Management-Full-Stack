@@ -9,12 +9,12 @@ export class BooksService {
     /**
      * Search Books
      * Search for books by title, ISBN, or author name.
-     * Returns paginated results.
+     * Returns paginated results with author names and availability status.
      * @param data The data for the request.
      * @param data.query Search by title, ISBN, or author name
      * @param data.skip
      * @param data.limit
-     * @returns BooksPublic Successful Response
+     * @returns BooksSearchPublic Successful Response
      * @throws ApiError
      */
     public static searchBooks(data: BooksSearchBooksData = {}): CancelablePromise<BooksSearchBooksResponse> {
@@ -31,7 +31,7 @@ export class BooksService {
             }
         });
     }
-    
+
     /**
      * Create Book
      * Create a new book with an author.
@@ -57,7 +57,7 @@ export class BooksService {
             }
         });
     }
-    
+
     /**
      * Delete Book
      * Delete a book by ISBN.

@@ -75,11 +75,42 @@ export const BookPublicSchema = {
     title: 'BookPublic'
 } as const;
 
-export const BooksPublicSchema = {
+export const BookSearchResultSchema = {
+    properties: {
+        isbn: {
+            type: 'string',
+            title: 'Isbn'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        authors: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Authors'
+        },
+        available: {
+            type: 'string',
+            title: 'Available'
+        }
+    },
+    type: 'object',
+    required: ['isbn', 'title', 'available'],
+    title: 'BookSearchResult'
+} as const;
+
+export const BooksSearchPublicSchema = {
     properties: {
         data: {
             items: {
-                '$ref': '#/components/schemas/BookPublic'
+                '$ref': '#/components/schemas/BookSearchResult'
             },
             type: 'array',
             title: 'Data'
@@ -91,7 +122,7 @@ export const BooksPublicSchema = {
     },
     type: 'object',
     required: ['data', 'count'],
-    title: 'BooksPublic'
+    title: 'BooksSearchPublic'
 } as const;
 
 export const HTTPValidationErrorSchema = {

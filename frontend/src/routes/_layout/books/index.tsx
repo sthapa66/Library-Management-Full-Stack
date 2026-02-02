@@ -3,18 +3,51 @@ import { createFileRoute } from "@tanstack/react-router"
 import { Suspense, useState } from "react"
 import { Link } from "@tanstack/react-router"
 
-import { BooksService } from "@/client"
-import { columns } from "@/components/Books/columns"
+import { BooksService, BookSearchResult } from "@/client"
 import { DataTable } from "@/components/Common/DataTable"
 import PendingBooks from "@/components/Pending/PendingBooks"
 import useAuth from "@/hooks/useAuth"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Search } from "lucide-react"
+import { ColumnDef } from "@tanstack/react-table"
+
+// Updated columns for the new data structure
+const searchColumns: ColumnDef<BookSearchResult>[] = [
+  {
+    accessorKey: "isbn",
+    header: "ISBN",
+  },
+  {
+    accessorKey: "title",
+    header: "Title",
+  },
+  {
+    accessorKey: "authors",
+    header: "Authors",
+    cell: ({ row }) => row.original.authors || "No authors",
+  },
+  {
+    accessorKey: "available",
+    header: "Status",
+    cell: ({ row }) => (
+      <span
+        className={
+          row.original.available === "IN"
+            ? "text-green-600 font-medium"
+            : "text-red-600 font-medium"
+        }
+      >
+        {row.original.available === "IN" ? "Available" : "Checked Out"}
+      </span>
+    ),
+  },
+]
 
 function getBooksQueryOptions(query: string) {
   return {
-    queryFn: () => BooksService.searchBooks({ query: query || null, skip: 0, limit: 100 }),
+    queryFn: () =>
+      BooksService.searchBooks({ query: query || undefined, skip: 0, limit: 100 }),
     queryKey: ["books", query],
   }
 }
@@ -24,7 +57,7 @@ export const Route = createFileRoute("/_layout/books/")({
   head: () => ({
     meta: [
       {
-        title: "Books - FastAPI Cloud",
+        title: "Books - Example Library",
       },
     ],
   }),
@@ -33,7 +66,7 @@ export const Route = createFileRoute("/_layout/books/")({
 function BooksTableContent({ query }: { query: string }) {
   const { data: books } = useSuspenseQuery(getBooksQueryOptions(query))
 
-  return <DataTable columns={columns} data={books.data} />
+  return <DataTable columns={searchColumns} data={books.data} />
 }
 
 function BooksTable({ query }: { query: string }) {
@@ -52,6 +85,11 @@ function Books() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setActiveQuery(searchQuery)
+  }
+
+  const handleClear = () => {
+    setSearchQuery("")
+    setActiveQuery("")
   }
 
   return (
@@ -81,6 +119,11 @@ function Books() {
           />
         </div>
         <Button type="submit">Search</Button>
+        {activeQuery && (
+          <Button type="button" variant="outline" onClick={handleClear}>
+            Clear
+          </Button>
+        )}
       </form>
 
       <BooksTable query={activeQuery} />

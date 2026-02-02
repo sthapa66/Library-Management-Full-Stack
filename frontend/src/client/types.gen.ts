@@ -14,8 +14,15 @@ export type BookPublic = {
     title: string;
 };
 
-export type BooksPublic = {
-    data: Array<BookPublic>;
+export type BookSearchResult = {
+    isbn: string;
+    title: string;
+    authors?: (string | null);
+    available: string;
+};
+
+export type BooksSearchPublic = {
+    data: Array<BookSearchResult>;
     count: number;
 };
 
@@ -128,7 +135,7 @@ export type BooksSearchBooksData = {
     skip?: number;
 };
 
-export type BooksSearchBooksResponse = (BooksPublic);
+export type BooksSearchBooksResponse = (BooksSearchPublic);
 
 export type BooksCreateBookData = {
     authorName: string;

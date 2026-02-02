@@ -14,8 +14,12 @@ from app.models import (
     BookAuthor,
     BookPublic,
     BooksPublic,
+    BookLoan,
+    BookSearchResult,
+    BooksSearchPublic
 )
 from app.utils import generate_new_account_email, send_email
+from sqlalchemy import func, case, exists, and_, or_
 
 
 def get_books_search(
@@ -25,33 +29,86 @@ def get_books_search(
     limit: int = 100
 ) -> tuple[list[Book], int]:
     """Search books by title, ISBN, or author name"""
-    statement = select(Book)
 
     if query:
-        # Join with BookAuthor and Author to search by author name
+        keyword = f"%{query.lower()}%"
+
+        # Main query with aggregated authors and availability status
         statement = (
-            statement
+            select(
+                Book.isbn,
+                Book.title,
+                func.string_agg(Author.name, ', ').label('authors'),
+                case(
+                    (
+                        exists(
+                            select(1)
+                            .select_from(BookLoan)
+                            .where(
+                                and_(
+                                    BookLoan.isbn == Book.isbn,
+                                    BookLoan.date_in.is_(None)
+                                )
+                            )
+                        ),
+                        'OUT'
+                    ),
+                    else_='IN'
+                ).label('available')
+            )
+            .select_from(Book)
             .join(BookAuthor, Book.isbn == BookAuthor.isbn, isouter=True)
             .join(Author, BookAuthor.author_id == Author.author_id, isouter=True)
             .where(
                 or_(
-                    col(Book.title).ilike(f"%{query}%"),
-                    col(Book.isbn).ilike(f"%{query}%"),
-                    col(Author.name).ilike(f"%{query}%")
+                    func.lower(Book.isbn).like(keyword),
+                    func.lower(Book.title).like(keyword),
+                    func.lower(Author.name).like(keyword)
                 )
             )
-            .distinct()
+            .group_by(Book.isbn, Book.title)
+            .order_by(Book.title)
+        )
+    else:
+        # Query without search filter
+        statement = (
+            select(
+                Book.isbn,
+                Book.title,
+                func.string_agg(Author.name, ', ').label('authors'),  # Changed from group_concat
+                case(
+                    (
+                        exists(
+                            select(1)
+                            .select_from(BookLoan)
+                            .where(
+                                and_(
+                                    BookLoan.isbn == Book.isbn,
+                                    BookLoan.date_in.is_(None)
+                                )
+                            )
+                        ),
+                        'OUT'
+                    ),
+                    else_='IN'
+                ).label('available')
+            )
+            .select_from(Book)
+            .join(BookAuthor, Book.isbn == BookAuthor.isbn, isouter=True)
+            .join(Author, BookAuthor.author_id == Author.author_id, isouter=True)
+            .group_by(Book.isbn, Book.title)
+            .order_by(Book.title)
         )
 
     # Get total count
-    count_statement = statement
-    count = len(session.exec(count_statement).all())
+    count_statement = select(func.count()).select_from(statement.alias())
+    count = session.exec(count_statement).one()
 
     # Apply pagination
     statement = statement.offset(skip).limit(limit)
-    books = session.exec(statement).all()
+    results = session.exec(statement).all()
 
-    return books, count
+    return results, count
 
 
 def create_book_with_author(
@@ -107,7 +164,7 @@ def delete_book_by_isbn(session: SessionDep, isbn: str) -> Book:
 router = APIRouter(prefix="/books", tags=["books"])
 
 
-@router.get("/search", response_model=BooksPublic)
+@router.get("/search", response_model=BooksSearchPublic)
 def search_books(
     session: SessionDep,
     query: str | None = Query(default=None, description="Search by title, ISBN, or author name"),
@@ -116,10 +173,22 @@ def search_books(
 ):
     """
     Search for books by title, ISBN, or author name.
-    Returns paginated results.
+    Returns paginated results with author names and availability status.
     """
-    books, count = get_books_search(session, query=query, skip=skip, limit=limit)
-    return BooksPublic(data=books, count=count)
+    results, count = get_books_search(session, query=query, skip=skip, limit=limit)
+
+    # Convert results to response model
+    books = [
+        BookSearchResult(
+            isbn=row.isbn,
+            title=row.title,
+            authors=row.authors,
+            available=row.available
+        )
+        for row in results
+    ]
+
+    return BooksSearchPublic(data=books, count=count)
 
 
 @router.post("/", dependencies=[Depends(get_current_active_superuser)], response_model=BookPublic, status_code=201)

@@ -83,6 +83,10 @@ const UserInformation = () => {
   return (
     <div className="max-w-md">
       <h3 className="text-lg font-semibold py-4">User Information</h3>
+
+      <h4 className="flex flex-col gap-4">User ID</h4>
+      <p>{currentUser?.id}</p>
+
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}

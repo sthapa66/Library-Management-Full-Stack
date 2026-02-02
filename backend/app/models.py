@@ -219,6 +219,17 @@ class BookAuthorPublic(BookAuthorBase):
     pass
 
 
+class BookSearchResult(SQLModel):
+    isbn: str
+    title: str
+    authors: str | None = None
+    available: str  # 'IN' or 'OUT'
+
+class BooksSearchPublic(SQLModel):
+    data: list[BookSearchResult]
+    count: int
+
+
 # BORROWER models
 class BorrowerBase(SQLModel):
     ssn: str | None = Field(default=None, max_length=255)
